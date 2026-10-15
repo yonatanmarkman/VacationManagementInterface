@@ -27,6 +27,7 @@ export enum ErrorCode {
   RouteNotFound = 'ROUTE_NOT_FOUND',
   MethodNotAllowed = 'METHOD_NOT_ALLOWED',
   VacationRequestNotFound = 'VACATION_REQUEST_NOT_FOUND',
+  TeamPlanNotFound = 'TEAM_PLAN_NOT_FOUND',
 
   // 409 - conflicts with the current state
   VacationOverlap = 'VACATION_OVERLAP',

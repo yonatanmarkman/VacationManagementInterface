@@ -2,7 +2,12 @@
  * Input schemas of the team endpoints.
  */
 import { z } from 'zod';
-import { idSchema, isoDateSchema, optionalTextSchema } from '../../../http/requestParsing';
+import {
+  idSchema,
+  isoDateSchema,
+  optionalTextSchema,
+  paginationShape,
+} from '../../../http/requestParsing';
 import { REASON_MAX_LENGTH } from '../../vacation-requests/http/vacationRequestSchemas';
 
 export const MAX_TEAM_PLAN_PARTICIPANTS = 50;
@@ -19,5 +24,8 @@ export const planTeamVacationBodySchema = z.strictObject({
   participantIds: z.array(idSchema).min(1).max(MAX_TEAM_PLAN_PARTICIPANTS),
 });
 
+export const listTeamPlansQuerySchema = z.strictObject({ ...paginationShape });
+
+export type ListTeamPlansParams = z.infer<typeof listTeamPlansQuerySchema>;
 export type TeamCalendarParams = z.infer<typeof teamCalendarQuerySchema>;
 export type PlanTeamVacationBody = z.infer<typeof planTeamVacationBodySchema>;

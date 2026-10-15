@@ -1,7 +1,8 @@
 /**
  * PlanTeamVacationCommand: a requester proposes a vacation for themselves and teammates.
  *
- * One Pending request is created per participant, all or nothing:
+ * The plan is stored, and one Pending request linked to it is created per participant,
+ * all or nothing:
  * - the proposer is always a participant;
  * - every participant must exist, be in the proposer's team and hold the Requester role;
  * - every participant must be free (rules 2 and 3); all clashes are reported together;
@@ -22,6 +23,7 @@ import type { Clock } from '../../../shared/time/Clock';
 import type { User } from '../../users/domain/User';
 import { UserRole } from '../../users/domain/UserRole';
 import { VacationRequest } from '../../vacation-requests/domain/VacationRequest';
+import { TeamVacationPlan } from '../domain/TeamVacationPlan';
 import {
   assertValidVacationPeriod,
   describeConflict,
@@ -40,18 +42,27 @@ export interface PlanTeamVacationPayload {
   readonly participantIds: readonly number[];
 }
 
-export class PlanTeamVacationCommand extends Command<PlanTeamVacationPayload, VacationRequest[]> {}
+/** The stored plan and the request created for each participant (with users). */
+export interface PlannedTeamVacation {
+  readonly plan: TeamVacationPlan;
+  readonly requests: VacationRequest[];
+}
+
+export class PlanTeamVacationCommand extends Command<
+  PlanTeamVacationPayload,
+  PlannedTeamVacation
+> {}
 
 export class PlanTeamVacationHandler implements CommandHandler<
   PlanTeamVacationCommand,
-  VacationRequest[]
+  PlannedTeamVacation
 > {
   constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly clock: Clock,
   ) {}
 
-  async execute({ payload }: PlanTeamVacationCommand): Promise<VacationRequest[]> {
+  async execute({ payload }: PlanTeamVacationCommand): Promise<PlannedTeamVacation> {
     const period: DateRange = { startDate: payload.startDate, endDate: payload.endDate };
     assertValidVacationPeriod(period, this.clock.today());
 
@@ -72,10 +83,23 @@ export class PlanTeamVacationHandler implements CommandHandler<
       );
       assertParticipantsAvailable(period, participants, candidates);
 
+      const plan = await repositories.teamVacationPlans.save(
+        TeamVacationPlan.propose({
+          proposerId: proposer.id,
+          teamId: proposer.teamId,
+          ...period,
+          reason: payload.reason,
+        }),
+      );
       const created: VacationRequest[] = [];
       for (const userId of participantIds) {
         const saved = await repositories.vacationRequests.save(
-          VacationRequest.submit({ userId, ...period, reason: payload.reason }),
+          VacationRequest.submit({
+            userId,
+            ...period,
+            reason: payload.reason,
+            teamPlanId: plan.id,
+          }),
         );
         raise(
           new VacationRequestCreatedEvent({
@@ -89,6 +113,7 @@ export class PlanTeamVacationHandler implements CommandHandler<
       }
       raise(
         new TeamVacationPlannedEvent({
+          planId: plan.id,
           proposerId: proposer.id,
           teamId: proposer.teamId,
           ...period,
@@ -96,7 +121,10 @@ export class PlanTeamVacationHandler implements CommandHandler<
           requestIds: created.map((request) => request.id),
         }),
       );
-      return created;
+      return {
+        plan: (await repositories.teamVacationPlans.findById(plan.id)) ?? plan,
+        requests: created,
+      };
     });
   }
 }

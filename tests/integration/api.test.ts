@@ -210,7 +210,7 @@ describe('validator flow', () => {
       query: { userId: String(omer) },
     });
     expect(byUser.body.data.every((r: { userId: number }) => r.userId === omer)).toBe(true);
-    expect(byUser.body.pagination.totalItems).toBe(2);
+    expect(byUser.body.pagination.totalItems).toBe(3); // 2 own requests + 1 from the seeded team plan
 
     const reservations = byUser.body.data[0].user.team.id;
     const byTeam = await call('GET', '/vacation-requests', {
@@ -222,7 +222,7 @@ describe('validator flow', () => {
         (r: { user: { team: { id: number } } }) => r.user.team.id === reservations,
       ),
     ).toBe(true);
-    expect(byTeam.body.pagination.totalItems).toBe(6);
+    expect(byTeam.body.pagination.totalItems).toBe(9);
 
     const day = await today();
     const window = await call('GET', '/vacation-requests', {
@@ -257,8 +257,8 @@ describe('team planning', () => {
     }
   });
 
-  it('plans a team vacation for the proposer and teammates', async () => {
-    const response = await call('POST', '/me/team/vacation-plans', {
+  it('plans a team vacation that every participant can follow', async () => {
+    const created = await call('POST', '/me/team/vacation-plans', {
       token: await loginAs(USERS.requester),
       body: {
         startDate: await futureDate(10),
@@ -267,8 +267,73 @@ describe('team planning', () => {
         participantIds: [await userIdOf(USERS.teammate), await userIdOf(USERS.teammate2)],
       },
     });
-    expect(response.status).toBe(201);
-    expect(response.body.requests).toHaveLength(3);
+    expect(created.status).toBe(201);
+    expect(created.headers.Location).toBe(`/me/team/vacation-plans/${created.body.id}`);
+    expect(created.body.participants).toHaveLength(3);
+    expect(created.body.summary).toEqual({ Pending: 3, Approved: 0, Rejected: 0 });
+
+    // A validator approves one participant and rejects another, individually.
+    const daniel = created.body.participants.find(
+      (p: { name: string }) => p.name === 'Daniel Cohen',
+    );
+    const maya = created.body.participants.find(
+      (p: { name: string }) => p.name === 'Maya Friedman',
+    );
+    const validatorToken = await loginAs(USERS.validator);
+    await call('PATCH', `/vacation-requests/${daniel.requestId}/status`, {
+      token: validatorToken,
+      body: { status: 'Approved', version: 1 },
+    });
+    await call('PATCH', `/vacation-requests/${maya.requestId}/status`, {
+      token: validatorToken,
+      body: { status: 'Rejected', comments: 'Deadline that week', version: 1 },
+    });
+
+    // The proposer sees every participant's outcome, but not the comments meant for others.
+    const asProposer = await call('GET', `/me/team/vacation-plans/${created.body.id}`, {
+      token: await loginAs(USERS.requester),
+    });
+    expect(asProposer.body.summary).toEqual({ Pending: 1, Approved: 1, Rejected: 1 });
+    const mayaSeenByProposer = asProposer.body.participants.find(
+      (p: { userId: number }) => p.userId === maya.userId,
+    );
+    expect(mayaSeenByProposer).toMatchObject({ status: 'Rejected', comments: null });
+
+    // Maya sees the plan in her list, with her own rejection comment.
+    const mayasPlans = await call('GET', '/me/team/vacation-plans', {
+      token: await loginAs(USERS.teammate2),
+    });
+    const mine = mayasPlans.body.data[0].participants.find(
+      (p: { userId: number }) => p.userId === maya.userId,
+    );
+    expect(mine).toMatchObject({ status: 'Rejected', comments: 'Deadline that week' });
+
+    // Her request is tagged with the plan.
+    const request = await call('GET', `/vacation-requests/${maya.requestId}`, {
+      token: await loginAs(USERS.teammate2),
+    });
+    expect(request.body.teamPlan).toEqual({
+      id: created.body.id,
+      proposedBy: { id: await userIdOf(USERS.requester), name: 'Noa Levi' },
+    });
+
+    // Someone outside the plan cannot see it.
+    const outsider = await call('GET', `/me/team/vacation-plans/${created.body.id}`, {
+      token: await loginAs(USERS.otherTeamRequester),
+    });
+    expect(outsider.status).toBe(404);
+    expect(outsider.body.error.code).toBe('TEAM_PLAN_NOT_FOUND');
+  });
+
+  it('shows the seeded team plan to its participants', async () => {
+    const plans = await call('GET', '/me/team/vacation-plans', {
+      token: await loginAs('omer.peretz@example.com'),
+    });
+    expect(plans.body.pagination.totalItems).toBe(1);
+    expect(plans.body.data[0]).toMatchObject({
+      proposedBy: { name: 'Yael Shapiro' },
+      summary: { Pending: 0, Approved: 2, Rejected: 1 },
+    });
   });
 
   it('creates nothing if one participant is busy, and validators cannot propose', async () => {

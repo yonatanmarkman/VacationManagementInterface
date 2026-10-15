@@ -993,7 +993,87 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('one request per participant (proposer included)', () => pm.expect(pm.response.json().requests.length).to.eql(JSON.parse(pm.environment.get('teamPlanParticipantIds')).length + 1));"
+                  "pm.test('one participant per invitee, proposer included', () => pm.expect(pm.response.json().participants.length).to.eql(JSON.parse(pm.environment.get('teamPlanParticipantIds')).length + 1));",
+                  "pm.test('has a Location header', () => pm.response.to.have.header('Location'));",
+                  "pm.environment.set('teamPlanId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my team plans (status of every participant)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/vacation-plans?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "vacation-plans"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('the new plan is listed', () => pm.expect(pm.response.json().data.map((p) => p.id)).to.include(Number(pm.environment.get('teamPlanId'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get one team plan (as a participant)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/vacation-plans/{{teamPlanId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "vacation-plans", "{{teamPlanId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teammateToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has a status summary', () => pm.expect(pm.response.json().summary).to.have.property('Pending'));"
                 ]
               }
             }

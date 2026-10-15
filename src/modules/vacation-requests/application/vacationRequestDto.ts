@@ -19,6 +19,11 @@ export interface VacationRequestDto {
   readonly reason: string | null;
   readonly status: VacationRequestStatus;
   readonly comments: string | null;
+  /** Set when the request was created by a team vacation plan. */
+  readonly teamPlan: {
+    readonly id: number;
+    readonly proposedBy: { readonly id: number; readonly name: string };
+  } | null;
   readonly version: number;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -34,6 +39,15 @@ export function toVacationRequestDto(request: VacationRequest): VacationRequestD
     reason: request.reason,
     status: request.status,
     comments: request.comments,
+    teamPlan: request.teamPlan
+      ? {
+          id: request.teamPlan.id,
+          proposedBy: {
+            id: request.teamPlan.proposerId,
+            name: request.teamPlan.proposer?.name ?? '',
+          },
+        }
+      : null,
     version: request.version,
     createdAt: request.createdAt.toISOString(),
     updatedAt: request.updatedAt.toISOString(),

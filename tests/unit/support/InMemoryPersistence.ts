@@ -12,6 +12,8 @@ import type {
 } from '../../../src/shared/persistence/UnitOfWork';
 import type { DateRange } from '../../../src/shared/time/calendarDate';
 import { rangesOverlap } from '../../../src/shared/time/calendarDate';
+import { TeamVacationPlan } from '../../../src/modules/teams/domain/TeamVacationPlan';
+import type { TeamVacationPlanRepository } from '../../../src/modules/teams/domain/TeamVacationPlanRepository';
 import type { User } from '../../../src/modules/users/domain/User';
 import type { UserRepository } from '../../../src/modules/users/domain/UserRepository';
 import { VacationRequest } from '../../../src/modules/vacation-requests/domain/VacationRequest';
@@ -91,6 +93,12 @@ export class InMemoryVacationRequestRepository implements VacationRequestReposit
     return [];
   }
 
+  async findByTeamPlanIds(planIds: readonly number[]): Promise<VacationRequest[]> {
+    return [...this.rows.values()]
+      .filter((row) => row.teamPlanId !== null && planIds.includes(row.teamPlanId))
+      .map(copy);
+  }
+
   async save(request: VacationRequest): Promise<VacationRequest> {
     const now = new Date();
     if (request.id === undefined) {
@@ -104,6 +112,32 @@ export class InMemoryVacationRequestRepository implements VacationRequestReposit
 
   async remove(request: VacationRequest): Promise<void> {
     this.rows.delete(request.id);
+  }
+}
+
+export class InMemoryTeamVacationPlanRepository implements TeamVacationPlanRepository {
+  private nextId = 500;
+  readonly plans = new Map<number, TeamVacationPlan>();
+
+  constructor(private readonly users: InMemoryUserRepository) {}
+
+  async save(plan: TeamVacationPlan): Promise<TeamVacationPlan> {
+    Object.assign(plan, { id: this.nextId++, createdAt: new Date() });
+    this.plans.set(plan.id, plan);
+    return plan;
+  }
+
+  async findById(id: number): Promise<TeamVacationPlan | null> {
+    const plan = this.plans.get(id);
+    if (!plan) {
+      return null;
+    }
+    const proposer = (await this.users.findById(plan.proposerId)) ?? undefined;
+    return Object.assign(new TeamVacationPlan(), plan, { proposer, team: proposer?.team });
+  }
+
+  async listForUser(): Promise<Page<TeamVacationPlan>> {
+    return { items: [...this.plans.values()], totalItems: this.plans.size };
   }
 }
 
@@ -128,8 +162,14 @@ export class InMemoryUnitOfWork implements UnitOfWork {
 export function createInMemoryPersistence(users: User[], requests: VacationRequest[] = []) {
   const userRepository = new InMemoryUserRepository(users);
   const vacationRequests = new InMemoryVacationRequestRepository(userRepository, requests);
-  const repositories: Repositories = { users: userRepository, vacationRequests };
-  return { repositories, vacationRequests, unitOfWork: new InMemoryUnitOfWork(repositories) };
+  const teamVacationPlans = new InMemoryTeamVacationPlanRepository(userRepository);
+  const repositories: Repositories = { users: userRepository, vacationRequests, teamVacationPlans };
+  return {
+    repositories,
+    vacationRequests,
+    teamVacationPlans,
+    unitOfWork: new InMemoryUnitOfWork(repositories),
+  };
 }
 
 function copy(request: VacationRequest): VacationRequest {

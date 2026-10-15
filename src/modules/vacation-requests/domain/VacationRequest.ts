@@ -20,6 +20,7 @@ import {
 import { ConflictError, ForbiddenError, ValidationError } from '../../../shared/errors/AppError';
 import { ErrorCode } from '../../../shared/errors/ErrorCode';
 import type { DateRange, IsoDate } from '../../../shared/time/calendarDate';
+import { TeamVacationPlan } from '../../teams/domain/TeamVacationPlan';
 import { User } from '../../users/domain/User';
 import { VacationRequestStatus } from './VacationRequestStatus';
 
@@ -29,6 +30,8 @@ export interface NewVacationRequest {
   readonly startDate: IsoDate;
   readonly endDate: IsoDate;
   readonly reason: string | null;
+  /** Set when the request is part of a team vacation plan. */
+  readonly teamPlanId?: number | null;
 }
 
 @Entity({ name: 'vacation_requests' })
@@ -64,6 +67,14 @@ export class VacationRequest {
   @Column({ type: 'text', nullable: true })
   comments!: string | null;
 
+  /** The team vacation plan this request belongs to, if any. */
+  @Column({ name: 'team_plan_id', type: 'integer', nullable: true })
+  teamPlanId!: number | null;
+
+  @ManyToOne(() => TeamVacationPlan, { nullable: true })
+  @JoinColumn({ name: 'team_plan_id' })
+  teamPlan?: TeamVacationPlan | null;
+
   /** Incremented by TypeORM on every update (optimistic locking). */
   @VersionColumn({ type: 'integer' })
   version!: number;
@@ -83,6 +94,7 @@ export class VacationRequest {
     request.reason = data.reason;
     request.status = VacationRequestStatus.Pending;
     request.comments = null;
+    request.teamPlanId = data.teamPlanId ?? null;
     return request;
   }
 

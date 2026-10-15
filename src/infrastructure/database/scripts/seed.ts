@@ -11,7 +11,7 @@ runScript('db:seed', async ({ database, timeZone }) => {
   try {
     const summary = await seedDatabase(dataSource, new SystemClock(timeZone).today());
     console.log(
-      `[db:seed] ${summary.teams} teams, ${summary.users} users, ${summary.vacationRequests} vacation requests`,
+      `[db:seed] ${summary.teams} teams, ${summary.users} users, ${summary.vacationRequests} vacation requests, ${summary.teamPlans} team plan(s)`,
     );
   } finally {
     await dataSource.destroy();

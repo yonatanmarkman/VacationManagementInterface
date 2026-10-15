@@ -27,7 +27,7 @@ export interface VacationRequestSort {
 }
 
 export interface VacationRequestRepository {
-  /** Finds a request with its user and the user's team. */
+  /** Finds a request with its user, the user's team and its team plan (if any). */
   findById(id: number): Promise<VacationRequest | null>;
 
   /**
@@ -55,6 +55,9 @@ export interface VacationRequestRepository {
 
   /** Pending/Approved requests of a team's members that overlap `range`, ordered by start date. */
   findTeamCalendar(teamId: number, range: DateRange): Promise<VacationRequest[]>;
+
+  /** Requests (with users) belonging to the given team vacation plans. */
+  findByTeamPlanIds(planIds: readonly number[]): Promise<VacationRequest[]>;
 
   /** Inserts or updates a request and returns the stored version. */
   save(request: VacationRequest): Promise<VacationRequest>;

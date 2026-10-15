@@ -8,23 +8,33 @@
 import type { DataSource } from 'typeorm';
 import { BcryptPasswordHasher } from '../../../modules/auth/infrastructure/BcryptPasswordHasher';
 import { Team } from '../../../modules/teams/domain/Team';
+import { TeamVacationPlan } from '../../../modules/teams/domain/TeamVacationPlan';
 import { User } from '../../../modules/users/domain/User';
 import { VacationRequest } from '../../../modules/vacation-requests/domain/VacationRequest';
 import type { IsoDate } from '../../../shared/time/calendarDate';
 import { addDays } from '../../../shared/time/calendarDate';
-import { DEMO_PASSWORD, SEED_TEAMS, SEED_USERS, SEED_VACATION_REQUESTS } from './seedData';
+import {
+  DEMO_PASSWORD,
+  SEED_TEAM_PLANS,
+  SEED_TEAMS,
+  SEED_USERS,
+  SEED_VACATION_REQUESTS,
+} from './seedData';
 
 export interface SeedSummary {
   readonly teams: number;
   readonly users: number;
   readonly vacationRequests: number;
+  readonly teamPlans: number;
 }
 
 export async function seedDatabase(dataSource: DataSource, today: IsoDate): Promise<SeedSummary> {
   const passwordHash = await new BcryptPasswordHasher().hash(DEMO_PASSWORD);
 
   return dataSource.transaction(async (manager) => {
-    await manager.query('TRUNCATE TABLE vacation_requests, users, teams RESTART IDENTITY CASCADE');
+    await manager.query(
+      'TRUNCATE TABLE vacation_requests, team_vacation_plans, users, teams RESTART IDENTITY CASCADE',
+    );
 
     const teams = await manager.save(SEED_TEAMS.map((name) => manager.create(Team, { name })));
     const teamIdByName = new Map(teams.map((team) => [team.name, team.id]));
@@ -57,6 +67,41 @@ export async function seedDatabase(dataSource: DataSource, today: IsoDate): Prom
     );
     await manager.save(requests);
 
-    return { teams: teams.length, users: users.length, vacationRequests: requests.length };
+    let planRequests = 0;
+    for (const seedPlan of SEED_TEAM_PLANS) {
+      const proposer = users.find((user) => user.email === seedPlan.proposer) as User;
+      const period = {
+        startDate: addDays(today, seedPlan.startOffset),
+        endDate: addDays(today, seedPlan.endOffset),
+      };
+      const plan = await manager.save(
+        TeamVacationPlan.propose({
+          proposerId: proposer.id,
+          teamId: proposer.teamId,
+          ...period,
+          reason: seedPlan.reason,
+        }),
+      );
+      await manager.save(
+        seedPlan.participants.map((participant) =>
+          manager.create(VacationRequest, {
+            userId: userIdByEmail.get(participant.email),
+            ...period,
+            reason: seedPlan.reason,
+            status: participant.status,
+            comments: participant.comments ?? null,
+            teamPlanId: plan.id,
+          }),
+        ),
+      );
+      planRequests += seedPlan.participants.length;
+    }
+
+    return {
+      teams: teams.length,
+      users: users.length,
+      vacationRequests: requests.length + planRequests,
+      teamPlans: SEED_TEAM_PLANS.length,
+    };
   });
 }

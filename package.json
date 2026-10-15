@@ -19,6 +19,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
+    "concurrently": "^10.0.6",
     "dotenv": "^16.6.1",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
@@ -34,6 +35,8 @@
   "scripts": {
     "codegen": "cef-gen-handlers",
     "dev": "npm run codegen && tsx watch src/index.ts --local",
+    "dev:all": "concurrently --names api,web --prefix-colors blue,cyan --kill-others-on-fail \"npm run dev\" \"npm run dev --prefix frontend\"",
+    "frontend:install": "npm install --prefix frontend",
     "build": "npm run codegen && tsc -p tsconfig.build.json && node scripts/copyRootYaml.mjs",
     "start": "node dist/index.js --local",
     "typecheck": "tsc --noEmit",

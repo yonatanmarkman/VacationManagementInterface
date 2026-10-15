@@ -29,6 +29,14 @@ import {
   GetTeamMembersQuery,
 } from '../modules/teams/application/GetTeamMembersQuery';
 import {
+  GetTeamPlanHandler,
+  GetTeamPlanQuery,
+} from '../modules/teams/application/GetTeamPlanQuery';
+import {
+  ListMyTeamPlansHandler,
+  ListMyTeamPlansQuery,
+} from '../modules/teams/application/ListMyTeamPlansQuery';
+import {
   PlanTeamVacationCommand,
   PlanTeamVacationHandler,
 } from '../modules/teams/application/PlanTeamVacationCommand';
@@ -114,7 +122,9 @@ export async function createContainer(config: AppConfig, clock?: Clock): Promise
     .register(ListMyVacationRequestsQuery, new ListMyVacationRequestsHandler(repositories))
     .register(ListVacationRequestsQuery, new ListVacationRequestsHandler(repositories))
     .register(GetTeamMembersQuery, new GetTeamMembersHandler(repositories))
-    .register(GetTeamCalendarQuery, new GetTeamCalendarHandler(repositories, appClock));
+    .register(GetTeamCalendarQuery, new GetTeamCalendarHandler(repositories, appClock))
+    .register(ListMyTeamPlansQuery, new ListMyTeamPlansHandler(repositories))
+    .register(GetTeamPlanQuery, new GetTeamPlanHandler(repositories));
 
   return { config, dataSource, commandBus, queryBus, eventBus, tokenService };
 }

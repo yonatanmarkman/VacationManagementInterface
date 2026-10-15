@@ -47,7 +47,7 @@ describe('root.yaml', () => {
         expect(operation['x-roles']?.length).toBeGreaterThan(0);
       }
     }
-    expect(operations).toHaveLength(13);
+    expect(operations).toHaveLength(15);
   });
 
   it('reserves approval and the dashboard for validators', () => {

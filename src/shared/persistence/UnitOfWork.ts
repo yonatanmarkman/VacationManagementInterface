@@ -6,6 +6,7 @@
  * - If the work throws, the transaction is rolled back and no event is published.
  */
 import type { DomainEvent } from '../cqrs/DomainEvent';
+import type { TeamVacationPlanRepository } from '../../modules/teams/domain/TeamVacationPlanRepository';
 import type { UserRepository } from '../../modules/users/domain/UserRepository';
 import type { VacationRequestRepository } from '../../modules/vacation-requests/domain/VacationRequestRepository';
 
@@ -13,6 +14,7 @@ import type { VacationRequestRepository } from '../../modules/vacation-requests/
 export interface Repositories {
   readonly users: UserRepository;
   readonly vacationRequests: VacationRequestRepository;
+  readonly teamVacationPlans: TeamVacationPlanRepository;
 }
 
 /** What a unit of work exposes to the code running inside it. */

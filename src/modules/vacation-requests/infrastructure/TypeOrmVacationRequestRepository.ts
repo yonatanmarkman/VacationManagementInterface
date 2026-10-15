@@ -117,10 +117,23 @@ export class TypeOrmVacationRequestRepository implements VacationRequestReposito
     await this.repository.delete({ id: request.id });
   }
 
+  findByTeamPlanIds(planIds: readonly number[]): Promise<VacationRequest[]> {
+    if (planIds.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.withUserAndTeam()
+      .where('request.team_plan_id IN (:...planIds)', { planIds })
+      .orderBy('requester.name', 'ASC')
+      .getMany();
+  }
+
+  /** Requests with their user, the user's team and (for plan requests) the plan and its proposer. */
   private withUserAndTeam(): SelectQueryBuilder<VacationRequest> {
     return this.repository
       .createQueryBuilder('request')
       .innerJoinAndSelect('request.user', 'requester')
-      .innerJoinAndSelect('requester.team', 'team');
+      .innerJoinAndSelect('requester.team', 'team')
+      .leftJoinAndSelect('request.teamPlan', 'teamPlan')
+      .leftJoinAndSelect('teamPlan.proposer', 'planProposer');
   }
 }

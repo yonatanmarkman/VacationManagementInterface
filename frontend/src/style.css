@@ -1,0 +1,15 @@
+/*
+ * Global styles: Tailwind CSS plus a few base rules. Components are styled with Tailwind
+ * utility classes; the palette is Tailwind's blue scale (backgrounds) with white text.
+ */
+@import 'tailwindcss';
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-blue-950 font-sans text-white antialiased;
+  }
+}

@@ -29,13 +29,16 @@ const plan = (participantIds: number[]) =>
   });
 
 describe('PlanTeamVacationHandler', () => {
-  it('creates one request per participant, including the proposer', async () => {
-    const { unitOfWork, vacationRequests } = createInMemoryPersistence(users);
+  it('stores the plan and links one request per participant to it, proposer included', async () => {
+    const { unitOfWork, vacationRequests, teamVacationPlans } = createInMemoryPersistence(users);
     const handler = new PlanTeamVacationHandler(unitOfWork, new FixedClock(TODAY));
 
-    const created = await handler.execute(plan([teammate.id, teammate.id]));
+    const { plan: stored, requests } = await handler.execute(plan([teammate.id, teammate.id]));
 
-    expect(created.map((request) => request.userId)).toEqual([proposer.id, teammate.id]);
+    expect(teamVacationPlans.plans.size).toBe(1);
+    expect(stored).toMatchObject({ proposerId: proposer.id, teamId: proposer.teamId });
+    expect(requests.map((request) => request.userId)).toEqual([proposer.id, teammate.id]);
+    expect(requests.every((request) => request.teamPlanId === stored.id)).toBe(true);
     expect(vacationRequests.rows.size).toBe(2);
     expect(unitOfWork.publishedEvents).toEqual([
       expect.any(VacationRequestCreatedEvent),
@@ -69,7 +72,9 @@ describe('PlanTeamVacationHandler', () => {
       startDate: '2026-12-22',
       endDate: '2026-12-30',
     });
-    const { unitOfWork, vacationRequests } = createInMemoryPersistence(users, [busy]);
+    const { unitOfWork, vacationRequests, teamVacationPlans } = createInMemoryPersistence(users, [
+      busy,
+    ]);
     const handler = new PlanTeamVacationHandler(unitOfWork, new FixedClock(TODAY));
 
     await expect(handler.execute(plan([teammate.id]))).rejects.toMatchObject({
@@ -81,6 +86,7 @@ describe('PlanTeamVacationHandler', () => {
       },
     });
     expect(vacationRequests.rows.size).toBe(1);
+    expect(teamVacationPlans.plans.size).toBe(0);
     expect(unitOfWork.publishedEvents).toHaveLength(0);
   });
 });

@@ -191,3 +191,36 @@ export const SEED_VACATION_REQUESTS: readonly SeedVacationRequest[] = [
     comments: 'Campaign launch on those days.',
   },
 ];
+
+export interface SeedTeamPlan {
+  /** Email of the requester who proposed the plan (also a participant). */
+  readonly proposer: string;
+  readonly startOffset: number;
+  readonly endOffset: number;
+  readonly reason: string;
+  /** Every participant's request in the plan, proposer included. */
+  readonly participants: readonly {
+    email: string;
+    status: VacationRequestStatus;
+    comments?: string;
+  }[];
+}
+
+/** One plan, already decided participant by participant, to show how plans are followed up. */
+export const SEED_TEAM_PLANS: readonly SeedTeamPlan[] = [
+  {
+    proposer: 'yael.shapiro@example.com',
+    startOffset: 100,
+    endOffset: 104,
+    reason: 'Team trip to Eilat',
+    participants: [
+      { email: 'yael.shapiro@example.com', status: Approved, comments: 'Have fun!' },
+      { email: 'omer.peretz@example.com', status: Approved },
+      {
+        email: 'tamar.biton@example.com',
+        status: Rejected,
+        comments: 'You are on call that week.',
+      },
+    ],
+  },
+];

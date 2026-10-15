@@ -367,7 +367,8 @@ paths:
       tags: [Team]
       summary: Plan a team vacation
       description: |
-        Creates one Pending request for the caller and for each listed teammate, all or nothing.
+        Stores the plan and creates one Pending request for the caller and for each listed teammate,
+        all or nothing. Each request is then approved or rejected individually by validators.
         Participants must be in the caller's team and hold the Requester role. If any participant is
         unavailable, nothing is created and `409 TEAM_PLAN_CONFLICT` lists every clash.
       x-roles: [Requester]
@@ -388,21 +389,59 @@ paths:
                 participantIds: { type: array, minItems: 1, maxItems: 50, items: { type: integer } }
       responses:
         '201':
-          description: All requests were created.
+          description: The plan and its requests were created. The Location header points to the plan.
+          headers:
+            Location: { schema: { type: string }, description: URL of the new plan }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamPlan' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Team]
+      summary: List my team vacation plans
+      description: Plans the caller proposed or takes part in, newest first, with every participant's status.
+      x-roles: [Requester]
+      x-handler: modules/teams/http/teamHandlers#listMyTeamPlans
+      x-inputParser: modules/teams/http/teamHandlers#parseListTeamPlans
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: One page of plans.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  proposedBy:
-                    { type: object, properties: { id: { type: integer }, name: { type: string } } }
-                  startDate: { type: string, format: date }
-                  endDate: { type: string, format: date }
-                  requests: { type: array, items: { $ref: '#/components/schemas/VacationRequest' } }
+                  data: { type: array, items: { $ref: '#/components/schemas/TeamPlan' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+
+  /me/team/vacation-plans/:id:
+    get:
+      tags: [Team]
+      summary: Get one team vacation plan
+      description: Visible to the plan's proposer, its participants and validators. Others receive 404.
+      x-roles: [Requester, Validator]
+      x-handler: modules/teams/http/teamHandlers#getTeamPlan
+      x-inputParser: modules/teams/http/teamHandlers#parseTeamPlanId
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: The plan.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamPlan' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
 components:
   securitySchemes:
@@ -438,7 +477,7 @@ components:
       description: The caller lacks the required role, or tried to decide on their own request (FORBIDDEN, SELF_DECISION_FORBIDDEN).
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
     NotFound:
-      description: The request does not exist or is not visible to the caller (VACATION_REQUEST_NOT_FOUND).
+      description: The resource does not exist or is not visible to the caller (VACATION_REQUEST_NOT_FOUND, TEAM_PLAN_NOT_FOUND).
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
     Conflict:
       description: Conflicts with the current data (VACATION_OVERLAP, DUPLICATE_VACATION_REQUEST, REQUEST_NOT_PENDING, VERSION_CONFLICT, TEAM_PLAN_CONFLICT, CONCURRENT_MODIFICATION).
@@ -499,6 +538,14 @@ components:
         reason: { type: string, nullable: true }
         status: { type: string, enum: [Pending, Approved, Rejected] }
         comments: { type: string, nullable: true }
+        teamPlan:
+          type: object
+          nullable: true
+          description: Set when the request was created by a team vacation plan.
+          properties:
+            id: { type: integer }
+            proposedBy:
+              { type: object, properties: { id: { type: integer }, name: { type: string } } }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -507,6 +554,37 @@ components:
       properties:
         data: { type: array, items: { $ref: '#/components/schemas/VacationRequest' } }
         pagination: { $ref: '#/components/schemas/Pagination' }
+    TeamPlan:
+      type: object
+      properties:
+        id: { type: integer }
+        proposedBy: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+        team: { $ref: '#/components/schemas/Team' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        reason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: integer }
+              name: { type: string }
+              requestId: { type: integer }
+              status: { type: string, enum: [Pending, Approved, Rejected] }
+              comments:
+                type: string
+                nullable: true
+                description: Validator comment; only shown to that participant and to validators
+              isProposer: { type: boolean }
+        summary:
+          type: object
+          description: Number of participants per status
+          properties:
+            Pending: { type: integer }
+            Approved: { type: integer }
+            Rejected: { type: integer }
     TeamCalendar:
       type: object
       properties:
