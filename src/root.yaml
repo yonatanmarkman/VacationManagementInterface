@@ -1,0 +1,525 @@
+# Route definitions for the Common Event Framework (CEF) and the API documentation (served at GET /doc).
+#
+# Per operation:
+#   x-handler       CEF handler reference: <file under src>#<export>
+#   x-inputParser   CEF input parser reference (validates the request before the handler runs)
+#   security        standard OpenAPI; [] marks a public route, otherwise a bearer token is required
+#   x-roles         roles allowed to call the route (the caller needs at least one of them)
+#
+# Path parameters use CEF's ":param" syntax.
+# After editing handler references, run `npm run codegen` (dev and build do it automatically).
+
+openapi: 3.0.3
+info:
+  title: Vacation Management API
+  version: 1.0.0
+  description: |
+    Requesters submit vacation requests; validators approve or reject them.
+
+    **Authentication:** call `POST /auth/login`, then send `Authorization: Bearer <accessToken>`.
+
+    **Dates** are whole calendar days in `YYYY-MM-DD` format. A vacation must start after the day
+    it is requested (in the server timezone). One-day vacations have `startDate == endDate`.
+
+    **Errors** always have the shape `{ "error": { "code", "message", "details" } }`.
+    Clients should branch on `code`.
+
+    **Optimistic locking:** every vacation request has a `version`. Send the version you last saw when
+    updating or deciding on a request; a stale version is rejected with `409 VERSION_CONFLICT`.
+security:
+  - bearerAuth: []
+tags:
+  - name: Authentication
+  - name: Requester
+    description: Endpoints for employees managing their own vacation requests.
+  - name: Validator
+    description: Endpoints for managers reviewing vacation requests.
+  - name: Team
+    description: Team calendar and team vacation planning.
+
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Log in and receive an access token
+      security: []
+      x-handler: modules/auth/http/authHandlers#login
+      x-inputParser: modules/auth/http/authHandlers#parseLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              additionalProperties: false
+              properties:
+                email: { type: string, example: noa.levi@example.com }
+                password: { type: string, example: Password123! }
+      responses:
+        '200':
+          description: Logged in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get the logged-in user's profile
+      x-handler: modules/auth/http/authHandlers#getCurrentUser
+      responses:
+        '200':
+          description: The current user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /vacation-requests:
+    post:
+      tags: [Requester]
+      summary: Submit a vacation request
+      description: |
+        Creates a Pending request for the caller. Rules: `endDate >= startDate`; the vacation must start
+        after today; it must not overlap the caller's Pending/Approved requests; the exact same dates
+        cannot be requested twice (in any status). `status` and `comments` cannot be set.
+      x-roles: [Requester]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#createVacationRequest
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseCreateVacationRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate, endDate]
+              additionalProperties: false
+              properties:
+                startDate: { type: string, format: date, example: '2026-12-20' }
+                endDate: { type: string, format: date, example: '2026-12-24' }
+                reason: { type: string, nullable: true, maxLength: 500, example: Family trip }
+      responses:
+        '201':
+          description: Created. The `Location` header points to the new request.
+          headers:
+            Location: { schema: { type: string }, description: URL of the new request }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Validator]
+      summary: List all vacation requests (validator dashboard)
+      description: Filters can be combined. `startDate` matches requests starting on or after it; `endDate` matches requests ending on or before it.
+      x-roles: [Validator]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#listVacationRequests
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseListVacationRequests
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sortBy'
+        - $ref: '#/components/parameters/sortOrder'
+        - $ref: '#/components/parameters/status'
+        - {
+            in: query,
+            name: userId,
+            schema: { type: integer },
+            description: Only requests of this user,
+          }
+        - {
+            in: query,
+            name: teamId,
+            schema: { type: integer },
+            description: Only requests of members of this team,
+          }
+        - {
+            in: query,
+            name: startDate,
+            schema: { type: string, format: date },
+            description: Requests starting on or after this date,
+          }
+        - {
+            in: query,
+            name: endDate,
+            schema: { type: string, format: date },
+            description: Requests ending on or before this date,
+          }
+      responses:
+        '200':
+          description: One page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me/vacation-requests:
+    get:
+      tags: [Requester]
+      summary: List my vacation requests
+      x-roles: [Requester]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#listMyVacationRequests
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseListMyVacationRequests
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sortBy'
+        - $ref: '#/components/parameters/sortOrder'
+        - $ref: '#/components/parameters/status'
+      responses:
+        '200':
+          description: One page of the caller's requests (all fields).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /vacation-requests/:id/status:
+    patch:
+      tags: [Validator]
+      summary: Approve or reject a vacation request
+      description: |
+        Only Pending requests can be decided, and never by their owner. A comment is required to reject.
+        If two validators decide at the same time, the first one wins and the second receives `409`.
+      x-roles: [Validator]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#changeVacationRequestStatus
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseChangeVacationRequestStatus
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, version]
+              additionalProperties: false
+              properties:
+                status: { type: string, enum: [Approved, Rejected] }
+                comments: { type: string, maxLength: 1000, description: Required when rejecting }
+                version: { type: integer, description: The version you last saw }
+      responses:
+        '200':
+          description: The decided request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /vacation-requests/:id:
+    get:
+      tags: [Requester, Validator]
+      summary: Get one vacation request
+      description: Owners and validators see every field. Other users receive `404`.
+      x-roles: [Requester, Validator]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#getVacationRequest
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseVacationRequestId
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: The request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Requester]
+      summary: Update my Pending vacation request
+      description: Changes the dates and/or reason. All rules are checked again. Approved and Rejected requests cannot be modified.
+      x-roles: [Requester]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#updateVacationRequest
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseUpdateVacationRequest
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              additionalProperties: false
+              properties:
+                startDate: { type: string, format: date }
+                endDate: { type: string, format: date }
+                reason: { type: string, nullable: true, maxLength: 500 }
+                version: { type: integer, description: The version you last saw }
+      responses:
+        '200':
+          description: The updated request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VacationRequest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Requester]
+      summary: Cancel my Pending vacation request
+      x-roles: [Requester]
+      x-handler: modules/vacation-requests/http/vacationRequestHandlers#cancelVacationRequest
+      x-inputParser: modules/vacation-requests/http/vacationRequestHandlers#parseVacationRequestId
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204': { description: Cancelled. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /users:
+    get:
+      tags: [Validator]
+      summary: List users (for the "filter by user" dropdown)
+      x-roles: [Validator]
+      x-handler: modules/users/http/userHandlers#listUsers
+      x-inputParser: modules/users/http/userHandlers#parseListUsers
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - { in: query, name: teamId, schema: { type: integer } }
+        - { in: query, name: role, schema: { type: string, enum: [Requester, Validator] } }
+      responses:
+        '200':
+          description: One page of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/User' } }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me/team/members:
+    get:
+      tags: [Team]
+      summary: List the members of my team
+      x-roles: [Requester, Validator]
+      x-handler: modules/teams/http/teamHandlers#getTeamMembers
+      responses:
+        '200':
+          description: The caller's team and its members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team: { $ref: '#/components/schemas/Team' }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        email: { type: string }
+                        roles:
+                          { type: array, items: { type: string, enum: [Requester, Validator] } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/team/vacations:
+    get:
+      tags: [Team]
+      summary: Team calendar
+      description: |
+        Pending and Approved requests of the caller's team that overlap the window. Only names, dates and
+        status are shown. Defaults: `from` = today, `to` = `from` + 90 days. Maximum window: 366 days.
+      x-roles: [Requester, Validator]
+      x-handler: modules/teams/http/teamHandlers#getTeamCalendar
+      x-inputParser: modules/teams/http/teamHandlers#parseTeamCalendar
+      parameters:
+        - { in: query, name: from, schema: { type: string, format: date } }
+        - { in: query, name: to, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The team calendar.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamCalendar' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /me/team/vacation-plans:
+    post:
+      tags: [Team]
+      summary: Plan a team vacation
+      description: |
+        Creates one Pending request for the caller and for each listed teammate, all or nothing.
+        Participants must be in the caller's team and hold the Requester role. If any participant is
+        unavailable, nothing is created and `409 TEAM_PLAN_CONFLICT` lists every clash.
+      x-roles: [Requester]
+      x-handler: modules/teams/http/teamHandlers#planTeamVacation
+      x-inputParser: modules/teams/http/teamHandlers#parsePlanTeamVacation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate, endDate, participantIds]
+              additionalProperties: false
+              properties:
+                startDate: { type: string, format: date }
+                endDate: { type: string, format: date }
+                reason: { type: string, nullable: true, maxLength: 500 }
+                participantIds: { type: array, minItems: 1, maxItems: 50, items: { type: integer } }
+      responses:
+        '201':
+          description: All requests were created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposedBy:
+                    { type: object, properties: { id: { type: integer }, name: { type: string } } }
+                  startDate: { type: string, format: date }
+                  endDate: { type: string, format: date }
+                  requests: { type: array, items: { $ref: '#/components/schemas/VacationRequest' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    id: { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
+    page: { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+    limit:
+      { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    sortBy:
+      {
+        in: query,
+        name: sortBy,
+        schema: { type: string, enum: [createdAt, startDate, endDate], default: createdAt },
+      }
+    sortOrder:
+      { in: query, name: sortOrder, schema: { type: string, enum: [asc, desc], default: desc } }
+    status:
+      { in: query, name: status, schema: { type: string, enum: [Pending, Approved, Rejected] } }
+
+  responses:
+    BadRequest:
+      description: Invalid input (VALIDATION_ERROR, INVALID_JSON, READ_ONLY_FIELD, INVALID_DATE_RANGE, START_DATE_NOT_IN_FUTURE, REJECTION_COMMENT_REQUIRED, INVALID_PARTICIPANTS).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Unauthorized:
+      description: Missing, invalid or expired token, or wrong credentials (AUTHENTICATION_REQUIRED, INVALID_TOKEN, TOKEN_EXPIRED, INVALID_CREDENTIALS).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: The caller lacks the required role, or tried to decide on their own request (FORBIDDEN, SELF_DECISION_FORBIDDEN).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: The request does not exist or is not visible to the caller (VACATION_REQUEST_NOT_FOUND).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Conflicts with the current data (VACATION_OVERLAP, DUPLICATE_VACATION_REQUEST, REQUEST_NOT_PENDING, VERSION_CONFLICT, TEAM_PLAN_CONFLICT, CONCURRENT_MODIFICATION).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VACATION_OVERLAP }
+            message: { type: string }
+            details: { type: object }
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    Team:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        roles: { type: array, items: { type: string, enum: [Requester, Validator] } }
+        team: { $ref: '#/components/schemas/Team' }
+        createdAt: { type: string, format: date-time }
+    LoginResult:
+      type: object
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresIn: { type: integer, description: Token lifetime in seconds }
+        user: { $ref: '#/components/schemas/User' }
+    VacationRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            email: { type: string }
+            team: { $ref: '#/components/schemas/Team' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        reason: { type: string, nullable: true }
+        status: { type: string, enum: [Pending, Approved, Rejected] }
+        comments: { type: string, nullable: true }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    VacationRequestPage:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/VacationRequest' } }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    TeamCalendar:
+      type: object
+      properties:
+        team: { $ref: '#/components/schemas/Team' }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              requestId: { type: integer }
+              user: { type: object, properties: { id: { type: integer }, name: { type: string } } }
+              startDate: { type: string, format: date }
+              endDate: { type: string, format: date }
+              status: { type: string, enum: [Pending, Approved] }

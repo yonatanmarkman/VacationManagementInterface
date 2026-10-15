@@ -1,0 +1,55 @@
+{
+  "name": "vacation-management-api",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "commoneventframework": "^1.0.19",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.31",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^16.6.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "jest": "^30.5.2",
+    "js-yaml": "^5.4.3",
+    "prettier": "^3.9.10",
+    "ts-jest": "^29.4.15",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2"
+  },
+  "description": "Vacation management API: requesters submit vacation requests, validators approve or reject them. Node.js + CEF + TypeORM + PostgreSQL.",
+  "scripts": {
+    "codegen": "cef-gen-handlers",
+    "dev": "npm run codegen && tsx watch src/index.ts --local",
+    "build": "npm run codegen && tsc -p tsconfig.build.json && node scripts/copyRootYaml.mjs",
+    "start": "node dist/index.js --local",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:create": "tsx src/infrastructure/database/scripts/createDatabases.ts",
+    "db:migrate": "tsx src/infrastructure/database/scripts/migrate.ts",
+    "db:seed": "tsx src/infrastructure/database/scripts/seed.ts",
+    "db:setup": "npm run db:create && npm run db:migrate && npm run db:seed",
+    "db:reset": "tsx src/infrastructure/database/scripts/reset.ts",
+    "test": "jest --config jest.config.js",
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:all": "npm test && npm run test:integration"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

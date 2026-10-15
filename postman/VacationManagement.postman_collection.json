@@ -1,0 +1,1893 @@
+{
+  "info": {
+    "name": "Vacation Management API",
+    "description": "Requests for every endpoint, grouped by persona, plus a folder of deliberate rule violations.\n\n1. Start the API (`npm run dev`) and seed the database (`npm run db:seed`).\n2. Import this collection and the \"Vacation Management - Local\" environment, and select the environment.\n3. Run the whole collection with the Collection Runner (in order), or run requests one by one starting with the Authentication folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "description": "Log in as each demo persona. Tokens are saved automatically into the environment.",
+      "item": [
+        {
+          "name": "Login as Requester (Noa, Engineering)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{requesterEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('requesterToken', body.accessToken);",
+                  "pm.environment.set('requesterId', body.user.id);",
+                  "pm.environment.set('requesterTeamId', body.user.team.id);",
+                  "",
+                  "const pad = (n) => String(n).padStart(2, '0');",
+                  "const fmt = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());",
+                  "const plus = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return fmt(d); };",
+                  "const base = 150 + Math.floor(Math.random() * 3000);",
+                  "pm.environment.set('today', plus(0));",
+                  "pm.environment.set('tomorrow', plus(1));",
+                  "pm.environment.set('yesterday', plus(-1));",
+                  "pm.environment.set('startDate', plus(base));",
+                  "pm.environment.set('endDate', plus(base + 4));",
+                  "pm.environment.set('newEndDate', plus(base + 6));",
+                  "pm.environment.set('cancelStartDate', plus(base + 20));",
+                  "pm.environment.set('cancelEndDate', plus(base + 21));",
+                  "pm.environment.set('rejectStartDate', plus(base + 30));",
+                  "pm.environment.set('rejectEndDate', plus(base + 32));",
+                  "pm.environment.set('teamStartDate', plus(base + 40));",
+                  "pm.environment.set('teamEndDate', plus(base + 44));",
+                  "pm.environment.set('errorStartDate', plus(base + 60));",
+                  "pm.environment.set('errorEndDate', plus(base + 63));",
+                  "pm.environment.set('overlapStartDate', plus(base + 62));",
+                  "pm.environment.set('overlapEndDate', plus(base + 66));",
+                  "pm.environment.set('dualStartDate', plus(base + 80));",
+                  "pm.environment.set('dualEndDate', plus(base + 81));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Teammate (Daniel, Engineering)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{teammateEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('teammateToken', body.accessToken);",
+                  "pm.environment.set('teammateId', body.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Validator (Sarah)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{validatorEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('validatorToken', body.accessToken);",
+                  "pm.environment.set('validatorId', body.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Requester + Validator (David)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{dualRoleEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('dualRoleToken', body.accessToken);",
+                  "pm.environment.set('dualRoleId', body.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns the logged-in user', () => pm.expect(pm.response.json().email).to.eql(pm.environment.get('requesterEmail')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Requester",
+      "description": "Submit, list, read, update and cancel your own vacation requests.",
+      "item": [
+        {
+          "name": "Submit a vacation request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{startDate}}\",\n  \"endDate\": \"{{endDate}}\",\n  \"reason\": \"Family trip\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('is Pending', () => pm.expect(pm.response.json().status).to.eql('Pending'));",
+                  "pm.test('has a Location header', () => pm.response.to.have.header('Location'));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('requestId', request.id);",
+                  "pm.environment.set('requestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my vacation requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/vacation-requests?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "vacation-requests"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is paginated', () => pm.expect(pm.response.json()).to.have.property('pagination'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get my vacation request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{requestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{requestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update my Pending request (dates and reason)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{requestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{requestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endDate\": \"{{newEndDate}}\",\n  \"reason\": \"Family trip (extended)\",\n  \"version\": {{requestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('version was incremented', () => pm.expect(pm.response.json().version).to.eql(Number(pm.environment.get('requestVersion')) + 1));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('requestId', request.id);",
+                  "pm.environment.set('requestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit a request to cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{cancelStartDate}}\",\n  \"endDate\": \"{{cancelEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('cancelRequestId', request.id);",
+                  "pm.environment.set('cancelRequestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel my Pending request",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{cancelRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{cancelRequestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Validator",
+      "description": "Dashboard listing with filters and pagination, approvals and rejections.",
+      "item": [
+        {
+          "name": "List all Pending requests (dashboard)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests?status=Pending&page=1&limit=5&sortBy=startDate&sortOrder=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Pending"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "startDate"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('only Pending requests', () => pm.response.json().data.forEach((r) => pm.expect(r.status).to.eql('Pending')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter requests by user and dates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests?userId={{requesterId}}&startDate={{today}}&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{requesterId}}"
+                },
+                {
+                  "key": "startDate",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('only the selected user', () => pm.response.json().data.forEach((r) => pm.expect(r.userId).to.eql(Number(pm.environment.get('requesterId')))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter requests by team",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests?teamId={{requesterTeamId}}&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"],
+              "query": [
+                {
+                  "key": "teamId",
+                  "value": "{{requesterTeamId}}"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('only the selected team', () => pm.response.json().data.forEach((r) => pm.expect(r.user.team.id).to.eql(Number(pm.environment.get('requesterTeamId')))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users (for the user filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?role=Requester&page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "Requester"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve a request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{requestId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{requestId}}", "status"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"comments\": \"Enjoy!\",\n  \"version\": {{requestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is Approved', () => pm.expect(pm.response.json().status).to.eql('Approved'));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('requestId', request.id);",
+                  "pm.environment.set('requestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit a request to reject (as teammate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teammateToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{rejectStartDate}}\",\n  \"endDate\": \"{{rejectEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('rejectRequestId', request.id);",
+                  "pm.environment.set('rejectRequestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject a request (comment required)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{rejectRequestId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{rejectRequestId}}", "status"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Rejected\",\n  \"comments\": \"Release week, please pick other dates.\",\n  \"version\": {{rejectRequestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is Rejected with a comment', () => { const r = pm.response.json(); pm.expect(r.status).to.eql('Rejected'); pm.expect(r.comments).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Team planning",
+      "description": "Team members, team calendar, and planning a vacation together.",
+      "item": [
+        {
+          "name": "List my team members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "members"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const members = pm.response.json().members;",
+                  "const myId = Number(pm.environment.get('requesterId'));",
+                  "const teammates = members.filter((m) => m.id !== myId && m.roles.includes('Requester'));",
+                  "pm.test('has teammates', () => pm.expect(teammates.length).to.be.above(0));",
+                  "pm.environment.set('teamPlanParticipantIds', JSON.stringify(teammates.slice(0, 2).map((m) => m.id)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Team calendar (next 90 days)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/vacations",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "vacations"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('entries hide private fields', () => pm.response.json().entries.forEach((e) => pm.expect(e).to.not.have.property('reason')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Plan a team vacation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/vacation-plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "vacation-plans"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{teamStartDate}}\",\n  \"endDate\": \"{{teamEndDate}}\",\n  \"reason\": \"Team offsite\",\n  \"participantIds\": {{teamPlanParticipantIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('one request per participant (proposer included)', () => pm.expect(pm.response.json().requests.length).to.eql(JSON.parse(pm.environment.get('teamPlanParticipantIds')).length + 1));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Error cases (business rules)",
+      "description": "Each request deliberately breaks a rule and checks the status code and error code.",
+      "item": [
+        {
+          "name": "Setup: submit a base request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{errorStartDate}}\",\n  \"endDate\": \"{{errorEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('errorRequestId', request.id);",
+                  "pm.environment.set('errorRequestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 - no token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "vacation-requests"]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('error code is AUTHENTICATION_REQUIRED', () => pm.expect(pm.response.json().error.code).to.eql('AUTHENTICATION_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 - wrong password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{requesterEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('error code is INVALID_CREDENTIALS', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 - requester opens the validator dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 - validator-only user proposes a team plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/team/vacation-plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "team", "vacation-plans"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{teamStartDate}}\",\n  \"endDate\": \"{{teamEndDate}}\",\n  \"participantIds\": {{teamPlanParticipantIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - end date before start date (rule 1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{errorEndDate}}\",\n  \"endDate\": \"{{errorStartDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is INVALID_DATE_RANGE', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_DATE_RANGE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - vacation starting today (rule 5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{today}}\",\n  \"endDate\": \"{{tomorrow}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is START_DATE_NOT_IN_FUTURE', () => pm.expect(pm.response.json().error.code).to.eql('START_DATE_NOT_IN_FUTURE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - vacation in the past (rule 5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{yesterday}}\",\n  \"endDate\": \"{{tomorrow}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is START_DATE_NOT_IN_FUTURE', () => pm.expect(pm.response.json().error.code).to.eql('START_DATE_NOT_IN_FUTURE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - date with a time component (days only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{errorStartDate}}T09:00:00Z\",\n  \"endDate\": \"{{errorEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - requester tries to set the status (rule 7)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{errorRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{errorRequestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"version\": {{errorRequestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is READ_ONLY_FIELD', () => pm.expect(pm.response.json().error.code).to.eql('READ_ONLY_FIELD'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - exact same dates again (rule 3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{errorStartDate}}\",\n  \"endDate\": \"{{errorEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('error code is DUPLICATE_VACATION_REQUEST', () => pm.expect(pm.response.json().error.code).to.eql('DUPLICATE_VACATION_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - overlapping dates (rule 2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{overlapStartDate}}\",\n  \"endDate\": \"{{overlapEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('error code is VACATION_OVERLAP', () => pm.expect(pm.response.json().error.code).to.eql('VACATION_OVERLAP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - modify an approved request (rule 4)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{requestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{requestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Too late\",\n  \"version\": {{requestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('error code is REQUEST_NOT_PENDING', () => pm.expect(pm.response.json().error.code).to.eql('REQUEST_NOT_PENDING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - reject without a comment (rule 6)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{errorRequestId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{errorRequestId}}", "status"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Rejected\",\n  \"version\": {{errorRequestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error code is REJECTION_COMMENT_REQUIRED', () => pm.expect(pm.response.json().error.code).to.eql('REJECTION_COMMENT_REQUIRED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "409 - decide with a stale version",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{errorRequestId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{errorRequestId}}", "status"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{validatorToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"version\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('error code is VERSION_CONFLICT', () => pm.expect(pm.response.json().error.code).to.eql('VERSION_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup: dual-role user submits a request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{dualRoleToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDate\": \"{{dualStartDate}}\",\n  \"endDate\": \"{{dualEndDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "",
+                  "const request = pm.response.json();",
+                  "pm.environment.set('dualRequestId', request.id);",
+                  "pm.environment.set('dualRequestVersion', request.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 - dual-role user approves their own request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{dualRequestId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{dualRequestId}}", "status"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{dualRoleToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\",\n  \"version\": {{dualRequestVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('error code is SELF_DECISION_FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('SELF_DECISION_FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - someone else's request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests/{{dualRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests", "{{dualRequestId}}"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error code is VACATION_REQUEST_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('VACATION_REQUEST_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - unknown route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/does-not-exist",
+              "host": ["{{baseUrl}}"],
+              "path": ["does-not-exist"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error code is ROUTE_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('ROUTE_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "405 - unsupported method",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vacation-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["vacation-requests"]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{requesterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 405', () => pm.response.to.have.status(405));",
+                  "pm.test('error code is METHOD_NOT_ALLOWED', () => pm.expect(pm.response.json().error.code).to.eql('METHOD_NOT_ALLOWED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
