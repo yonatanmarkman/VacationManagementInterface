@@ -536,7 +536,7 @@ frontend/src/
 
 ### How it talks to the API
 
-- All calls go through `src/api/http.ts`. It adds the bearer token, turns API errors into `ApiError` (the API's
+- All calls go through `frontend/src/api/http.ts`. It adds the bearer token, turns API errors into `ApiError` (the API's
   message is shown to the user as-is), and on `401` ends the session and returns to the login page.
 - Vite proxies `/api/*` to the backend, so the browser sees a single origin. Set `VITE_API_TARGET` to point the proxy
   elsewhere.
@@ -566,7 +566,7 @@ npm run test:all           # both
 
 - **Unit tests** (`tests/unit`) need no database. Command handlers run against in-memory repositories and a fake
   unit of work. "Today" is controlled with a `FixedClock`. They also contain contract tests for `root.yaml`: every
-  route has a real handler, and every route except login declares its roles.
+  route has a real handler, only login is public, and every other route except `GET /auth/me` declares its roles.
 - **Integration tests** (`tests/integration`) call the real entry point (`src/index.ts` → CEF → pipeline →
   PostgreSQL), exactly like the dev server does. They use the separate `vacation_db_test` database, which is
   created if needed and rebuilt from migrations on every run; the demo data is re-seeded before each test.
