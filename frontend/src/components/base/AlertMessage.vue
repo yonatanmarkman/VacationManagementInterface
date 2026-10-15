@@ -3,7 +3,9 @@
   conflicts) can be passed in the default slot. Emits `dismiss` when closable.
 -->
 <script setup lang="ts">
-withDefaults(
+import { Comment, useSlots } from 'vue';
+
+const props = withDefaults(
   defineProps<{
     variant?: 'error' | 'success' | 'info';
     message?: string | null;
@@ -12,6 +14,16 @@ withDefaults(
   { variant: 'info', message: null, dismissible: false },
 );
 const emit = defineEmits<{ dismiss: [] }>();
+const slots = useSlots();
+
+/**
+ * Shown only when there is something to say. A slot whose content is hidden by `v-if`
+ * renders only comment nodes, which must not count as content (otherwise an empty box appears).
+ */
+function isVisible(): boolean {
+  const slotContent = slots.default?.() ?? [];
+  return Boolean(props.message) || slotContent.some((node) => node.type !== Comment);
+}
 
 const VARIANTS = {
   error: 'border-red-400/50 bg-red-500/15 text-red-100',
@@ -22,7 +34,7 @@ const VARIANTS = {
 
 <template>
   <div
-    v-if="message || $slots.default"
+    v-if="isVisible()"
     class="flex items-start gap-3 rounded-lg border px-4 py-3 text-sm"
     :class="VARIANTS[variant]"
     :role="variant === 'error' ? 'alert' : 'status'"
